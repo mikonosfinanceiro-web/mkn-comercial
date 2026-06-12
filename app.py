@@ -11,9 +11,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
-# -----------------------------------------------------------------------------
-# CONSTANTES E MAPEAMENTO DE METAS REAIS (JUNHO A DEZEMBRO 2026)
-# -----------------------------------------------------------------------------
 DADOS_METAS = {
     "Cenário 1 (+20%)": {
         "Anual": 26445600.00,
@@ -50,9 +47,6 @@ DADOS_METAS = {
 MESES_LISTA = ["Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 CORES_PILOTOS = ["#FF4B4B", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#14B8A6"]
 
-# -----------------------------------------------------------------------------
-# INTERFACE DE BANCO DE DADOS E ASSINATURA DIGITAL (HASH SEGURO)
-# -----------------------------------------------------------------------------
 def init_db():
     conn = sqlite3.connect("mkn_comercial.db")
     c = conn.cursor()
@@ -65,10 +59,8 @@ def init_db():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, dia INTEGER, mes TEXT, empresa TEXT, 
                   vendedor TEXT, valor REAL, vendas INTEGER, atendimentos INTEGER)''')
     
-    # Validação silenciosa da conta Master utilizando hash criptográfico seguro
     c.execute("SELECT * FROM usuarios WHERE username='carla.castro'")
     if not c.fetchone():
-        # A assinatura matemática abaixo corresponde exclusivamente à sua senha corporativa definida
         assinatura_criptografada = "6fc1cf0d7d6f51dfb37c030d95b5420f1883cb2b7bc4c71887e2794eb849887e"
         c.execute("INSERT INTO usuarios VALUES ('carla.castro', 'Carla Castro', ?, 'Admin')", (assinatura_criptografada,))
         
@@ -88,15 +80,11 @@ def init_db():
 
 init_db()
 
-# -----------------------------------------------------------------------------
-# CONTROLE ESTRUTURAL DE SESSÃO
-# -----------------------------------------------------------------------------
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.user = None
     st.session_state.tipo_user = None
 
-# --- TELA DE LOGIN PROTEGIDA E LIMPA ---
 if not st.session_state.autenticado:
     st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🏁 MKN Camisetas - Restrito</h2>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1.8, 1])
@@ -120,9 +108,6 @@ if not st.session_state.autenticado:
                     st.error("Credenciais incorretas. Tente novamente.")
     st.stop()
 
-# -----------------------------------------------------------------------------
-# PAINEL DO USUÁRIO LOGADO
-# -----------------------------------------------------------------------------
 st.sidebar.title(f"👤 {st.session_state.user}")
 st.sidebar.write(f"Perfil: **{st.session_state.tipo_user}**")
 if st.sidebar.button("Desconectar do Sistema"):
@@ -205,7 +190,6 @@ def calcular_metricas_comerciais(cenario, mes):
         
     return pd.DataFrame(dados_ranking), meta_mês
 
-# --- RENDERIZAÇÃO DOS MENUS ---
 if opcao_menu == "🏎️ Grande Prêmio (Painel Visual)":
     st.title(f"🏎️ Pista de Corrida - GP MKN ({mes_sel})")
     df_ranking, meta_mês = calcular_metricas_comerciais(cenario_sel, mes_sel)
@@ -338,7 +322,7 @@ elif opcao_menu == "✍️ Lançamento de Métricas":
                     st.success(f"📈 Lançamento gravado! Conversão Diária do Vendedor: {conversao_dia:.1f}%")
 
 elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_user == "Admin":
-    st.title("🛡️ Painel Avançado de Governança")
+    st.title("🛡️ Painel Advanced de Governança")
     t1, t2, t3 = st.tabs(["👤 Cadastro de Vendedores", "🏢 Organização de Empresas", "🔒 Contas de Operadores"])
     
     with t1:
