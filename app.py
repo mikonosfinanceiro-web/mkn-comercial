@@ -48,8 +48,8 @@ MESES_LISTA = ["Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "D
 CORES_PILOTOS = ["#FF4B4B", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#14B8A6"]
 
 def init_db():
-    # Mudado para a versão v4 para limpar de vez os travamentos anteriores
-    conn = sqlite3.connect("mkn_comercial_v4.db")
+    # Atualizado para v5 para forçar a criação da nova lista de vendedores padrão
+    conn = sqlite3.connect("mkn_comercial_v5.db")
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios 
                  (username TEXT PRIMARY KEY, nome TEXT, senha TEXT, tipo TEXT)''')
@@ -62,14 +62,15 @@ def init_db():
     
     c.execute("SELECT * FROM usuarios WHERE username='carla.castro'")
     if not c.fetchone():
-        # Esta assinatura agora corresponde exatamente à senha: 123mudar@
         assinatura_nova_senha = hashlib.sha256("123mudar@".encode()).hexdigest()
         c.execute("INSERT INTO usuarios VALUES ('carla.castro', 'Carla Castro', ?, 'Admin')", (assinatura_nova_senha,))
         
     vendedores_padrao = [
-        ("Vendedor Loja 1", "Loja"), ("Vendedor Loja 2", "Loja"),
-        ("Vendedor WhatsApp 1", "WhatsApp"), ("Vendedor WhatsApp 2", "WhatsApp"),
-        ("Angelo", "WhatsApp"), ("Gustavo", "WhatsApp")
+        ("Pedro", "WhatsApp"), 
+        ("Gabriel", "Loja"), 
+        ("Jailson", "Loja"),
+        ("Angelo", "WhatsApp"), 
+        ("Gustavo", "WhatsApp")
     ]
     for v, t in vendedores_padrao:
         c.execute("INSERT OR IGNORE INTO vendedores (nome, tipo_canal) VALUES (?, ?)", (v, t))
@@ -98,7 +99,7 @@ if not st.session_state.autenticado:
             
             if btn_login:
                 hash_input = hashlib.sha256(pass_input.encode()).hexdigest()
-                conn = sqlite3.connect("mkn_comercial_v4.db")
+                conn = sqlite3.connect("mkn_comercial_v5.db")
                 res = conn.execute("SELECT nome, tipo FROM usuarios WHERE username=? AND senha=?", (user_input, hash_input)).fetchone()
                 conn.close()
                 if res:
@@ -109,7 +110,6 @@ if not st.session_state.autenticado:
                 else:
                     st.error("Credenciais incorretas. Tente novamente.")
                     
-        # Sistema de recuperação visual seguro integrado
         if st.checkbox("Esqueceu a senha corporativa mestre? Click aqui"):
             st.info("🔑 A senha padrão para o usuário carla.castro é: **123mudar@**")
             
@@ -132,7 +132,7 @@ if st.session_state.tipo_user == "Admin":
 opcao_menu = st.sidebar.radio("Navegar por:", menu)
 
 def carregar_listas():
-    conn = sqlite3.connect("mkn_comercial_v4.db")
+    conn = sqlite3.connect("mkn_comercial_v5.db")
     vendedores = [r[0] for r in conn.execute("SELECT nome FROM vendedores ORDER BY nome ASC").fetchall()]
     empresas = [r[0] for r in conn.execute("SELECT nome FROM empresas ORDER BY nome ASC").fetchall()]
     conn.close()
@@ -145,7 +145,7 @@ def calcular_metricas_comerciais(cenario, mes):
     vendedores_loja = []
     vendedores_whats = []
     
-    conn = sqlite3.connect("mkn_comercial_v4.db")
+    conn = sqlite3.connect("mkn_comercial_v5.db")
     for row in conn.execute("SELECT nome, tipo_canal FROM vendedores").fetchall():
         if row[1] == "Loja": vendedores_loja.append(row[0])
         else: vendedores_whats.append(row[0])
@@ -185,7 +185,7 @@ def calcular_metricas_comerciais(cenario, mes):
             falta_atingir_mes = meta_individual - realizado
             
         ticket_vendedor = (realizado / vendas_qtd) if vendas_qtd > 0 else 0.0
-        taxa_conversao = (vendas_qtd / atend_qtd * 100) if atendimentos_qtd > 0 else 0.0
+        taxa_conversao = (vendas_qtd / atend_qtd * 100) if atend_qtd > 0 else 0.0
         
         dados_ranking.append({
             "Piloto": vend, "Meta Mês": meta_individual, "Já Atingiu": realizado,
@@ -257,7 +257,7 @@ elif opcao_menu == "📊 Dashboard Geral por Vendedor":
         style_title = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, leading=20, textColor=colors.HexColor('#1E3A8A'), alignment=1)
         style_cell = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=9, leading=11, alignment=1)
         
-        story.append(Paragraph(f"RELATÓRIO EXECUTIVO DE PERFORMANCE COMERCIAL", style_title))
+        story.append(Paragraph(f"RELATÓREPORT EXECUTIVE DE PERFORMANCE COMERCIAL", style_title))
         story.append(Paragraph(f"Competência: {mes_sel} de 2026 | Referência: {cenario_sel}", styles['Normal']))
         story.append(Spacer(1, 15))
         
@@ -313,17 +313,17 @@ elif opcao_menu == "✍️ Lançamento de Métricas":
             c4, c5, c6 = st.columns(3)
             valor_vendido = c4.number_input("Valor Bruto Comercial (R$)", min_value=0.0, step=100.0)
             vendas_qtd = c5.number_input("Qtd de Vendas Efetuadas", min_value=0, step=1)
-            atendimentos_qtd = c6.number_input("Fluxo de Atendimentos Realizados", min_value=0, step=1)
+            atend_qtd_input = c6.number_input("Fluxo de Atendimentos Realizados", min_value=0, step=1)
             
             if st.form_submit_button("Registrar e Atualizar Pista"):
-                if atendimentos_qtd < vendas_qtd:
+                if atend_qtd_input < vendas_qtd:
                     st.error("Erro: Atendimentos não podem ser menores que as vendas.")
-                elif atendimentos_qtd == 0 and vendas_qtd > 0:
+                elif atend_qtd_input == 0 and vendas_qtd > 0:
                     st.error("Erro: Impossível registrar vendas com zero atendimentos.")
                 else:
-                    conversao_dia = (vendas_qtd / atendimentos_qtd * 100) if atendimentos_qtd > 0 else 0.0
-                    conn = sqlite3.connect("mkn_comercial_v4.db")
-                    conn.execute("INSERT INTO lancamentos (dia, mes, empresa, vendedor, valor, vendas, atendimentos) VALUES (?, ?, ?, ?, ?, ?, ?)", (dia, mes_sel, empresa, vendedor, valor_vendido, vendas_qtd, atendimentos_qtd))
+                    conversao_dia = (vendas_qtd / atend_qtd_input * 100) if atend_qtd_input > 0 else 0.0
+                    conn = sqlite3.connect("mkn_comercial_v5.db")
+                    conn.execute("INSERT INTO lancamentos (dia, mes, empresa, vendedor, valor, vendas, atendimentos) VALUES (?, ?, ?, ?, ?, ?, ?)", (dia, mes_sel, empresa, vendedor, valor_vendido, vendas_qtd, atend_qtd_input))
                     conn.commit()
                     conn.close()
                     st.success(f"📈 Lançamento gravado! Conversão Diária do Vendedor: {conversao_dia:.1f}%")
@@ -339,7 +339,7 @@ elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_use
             canal_atuacao = st.selectbox("Canal Comercial", ["Loja", "WhatsApp"])
             if st.form_submit_button("Salvar Vendedor"):
                 if nome_novo_vendedor.strip():
-                    conn = sqlite3.connect("mkn_comercial_v4.db")
+                    conn = sqlite3.connect("mkn_comercial_v5.db")
                     try:
                         conn.execute("INSERT INTO vendedores (nome, tipo_canal) VALUES (?, ?)", (nome_novo_vendedor.strip(), canal_atuacao))
                         conn.commit()
@@ -348,7 +348,7 @@ elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_use
                     except sqlite3.IntegrityError: st.error("Vendedor já existe.")
                     finally: conn.close()
         
-        conn = sqlite3.connect("mkn_comercial_v4.db")
+        conn = sqlite3.connect("mkn_comercial_v5.db")
         df_v = pd.read_sql_query("SELECT id as ID, nome as 'Nome', tipo_canal as 'Canal Comercial' FROM vendedores ORDER BY nome ASC", conn)
         conn.close()
         st.dataframe(df_v, use_container_width=True, hide_index=True)
@@ -359,7 +359,7 @@ elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_use
             new_emp = st.text_input("Nome da Nova Empresa / Filial")
             if st.form_submit_button("Salvar Empresa"):
                 if new_emp.strip():
-                    conn = sqlite3.connect("mkn_comercial_v4.db")
+                    conn = sqlite3.connect("mkn_comercial_v5.db")
                     try:
                         conn.execute("INSERT INTO empresas (nome) VALUES (?)", (new_emp.strip(),))
                         conn.commit()
@@ -377,7 +377,7 @@ elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_use
             if st.form_submit_button("Gerar Credenciais"):
                 if new_user and new_pass:
                     hash_new = hashlib.sha256(new_pass.encode()).hexdigest()
-                    conn = sqlite3.connect("mkn_comercial_v4.db")
+                    conn = sqlite3.connect("mkn_comercial_v5.db")
                     try:
                         conn.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?)", (new_user.strip(), new_nome.strip(), hash_new, new_tipo))
                         conn.commit()
