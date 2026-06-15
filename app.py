@@ -11,28 +11,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
+# DICIONÁRIO DE METAS ATUALIZADO COM OS NOVOS CENÁRIOS (+30%, +40% E +50%)
 DADOS_METAS = {
-    "Cenário 1 (+20%)": {
-        "Anual": 26445600.00,
-        "Junho": {"Total": 1963660.39, "Loja": 619060.65, "Whats": 1344599.74},
-        "Julho": {"Total": 2857583.97, "Loja": 619060.65, "Whats": 2238523.32},
-        "Agosto": {"Total": 2525767.46, "Loja": 569535.80, "Whats": 1956231.66},
-        "Setembro": {"Total": 2507195.64, "Loja": 470486.10, "Whats": 2036709.55},
-        "Outubro": {"Total": 2952919.31, "Loja": 780016.42, "Whats": 2172902.89},
-        "Novembro": {"Total": 2835297.79, "Loja": 643823.08, "Whats": 2191474.71},
-        "Dezembro": {"Total": 2191474.71, "Loja": 569535.80, "Whats": 1621938.91}
-    },
-    "Cenário 2 (+25%)": {
-        "Anual": 27547500.00,
-        "Junho": {"Total": 2045479.57, "Loja": 657310.44, "Whats": 1427678.29},
-        "Julho": {"Total": 3034145.01, "Loja": 657310.44, "Whats": 2376834.57},
-        "Agosto": {"Total": 2681826.61, "Loja": 604725.61, "Whats": 2077101.00},
-        "Setembro": {"Total": 2662107.30, "Loja": 499555.94, "Whats": 2162551.36},
-        "Outubro": {"Total": 3135370.82, "Loja": 828211.16, "Whats": 2307159.66},
-        "Novembro": {"Total": 3010481.83, "Loja": 683602.86, "Whats": 2326878.97},
-        "Dezembro": {"Total": 2326878.97, "Loja": 604725.61, "Whats": 1722153.36}
-    },
-    "Cenário 3 (+30%)": {
+    "Cenário 1 (+30%)": {
         "Anual": 28649400.00,
         "Junho": {"Total": 2206317.07, "Loja": 695560.24, "Whats": 1510756.83},
         "Julho": {"Total": 3210706.05, "Loja": 695560.24, "Whats": 2515145.81},
@@ -41,6 +22,26 @@ DADOS_METAS = {
         "Outubro": {"Total": 3317822.33, "Loja": 876405.90, "Whats": 2441416.43},
         "Novembro": {"Total": 3185665.88, "Loja": 723382.65, "Whats": 2462283.24},
         "Dezembro": {"Total": 2462283.24, "Loja": 639915.42, "Whats": 1822367.82}
+    },
+    "Cenário 2 (+40%)": {
+        "Anual": 30853200.00,
+        "Junho": {"Total": 2448973.75, "Loja": 772059.82, "Whats": 1676913.93},
+        "Julho": {"Total": 3563828.13, "Loja": 772059.82, "Whats": 2791768.31},
+        "Agosto": {"Total": 3150004.06, "Loja": 710295.03, "Whats": 2439709.03},
+        "Setembro": {"Total": 3126842.27, "Loja": 586765.46, "Whats": 2540076.81},
+        "Outubro": {"Total": 3682725.34, "Loja": 972795.37, "Whats": 2709929.97},
+        "Novembro": {"Total": 3536033.97, "Loja": 802942.21, "Whats": 2733091.76},
+        "Dezembro": {"Total": 2733091.76, "Loja": 710295.03, "Whats": 2022796.73}
+    },
+    "Cenário 3 (+50%)": {
+        "Anual": 33057000.00,
+        "Junho": {"Total": 2691630.43, "Loja": 848559.41, "Whats": 1843071.02},
+        "Julho": {"Total": 3916950.20, "Loja": 848559.41, "Whats": 3068390.80},
+        "Agosto": {"Total": 3462122.36, "Loja": 780674.65, "Whats": 2681447.71},
+        "Setembro": {"Total": 3436665.59, "Loja": 644905.15, "Whats": 2791760.44},
+        "Outubro": {"Total": 4047628.36, "Loja": 1069184.85, "Whats": 2978443.51},
+        "Novembro": {"Total": 3886402.06, "Loja": 882501.78, "Whats": 3003900.28},
+        "Dezembro": {"Total": 3003900.29, "Loja": 780674.65, "Whats": 2223225.64}
     }
 }
 
@@ -48,8 +49,8 @@ MESES_LISTA = ["Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "D
 CORES_PILOTOS = ["#FF4B4B", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#14B8A6"]
 
 def init_db():
-    # Atualizado para v5 para forçar a criação da nova lista de vendedores padrão
-    conn = sqlite3.connect("mkn_comercial_v5.db")
+    # Atualizado para v6 para carregar a nova árvore estrutural limpa com os cenários corretos
+    conn = sqlite3.connect("mkn_comercial_v6.db")
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios 
                  (username TEXT PRIMARY KEY, nome TEXT, senha TEXT, tipo TEXT)''')
@@ -99,7 +100,7 @@ if not st.session_state.autenticado:
             
             if btn_login:
                 hash_input = hashlib.sha256(pass_input.encode()).hexdigest()
-                conn = sqlite3.connect("mkn_comercial_v5.db")
+                conn = sqlite3.connect("mkn_comercial_v6.db")
                 res = conn.execute("SELECT nome, tipo FROM usuarios WHERE username=? AND senha=?", (user_input, hash_input)).fetchone()
                 conn.close()
                 if res:
@@ -132,7 +133,7 @@ if st.session_state.tipo_user == "Admin":
 opcao_menu = st.sidebar.radio("Navegar por:", menu)
 
 def carregar_listas():
-    conn = sqlite3.connect("mkn_comercial_v5.db")
+    conn = sqlite3.connect("mkn_comercial_v6.db")
     vendedores = [r[0] for r in conn.execute("SELECT nome FROM vendedores ORDER BY nome ASC").fetchall()]
     empresas = [r[0] for r in conn.execute("SELECT nome FROM empresas ORDER BY nome ASC").fetchall()]
     conn.close()
@@ -145,7 +146,7 @@ def calcular_metricas_comerciais(cenario, mes):
     vendedores_loja = []
     vendedores_whats = []
     
-    conn = sqlite3.connect("mkn_comercial_v5.db")
+    conn = sqlite3.connect("mkn_comercial_v6.db")
     for row in conn.execute("SELECT nome, tipo_canal FROM vendedores").fetchall():
         if row[1] == "Loja": vendedores_loja.append(row[0])
         else: vendedores_whats.append(row[0])
@@ -257,7 +258,7 @@ elif opcao_menu == "📊 Dashboard Geral por Vendedor":
         style_title = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, leading=20, textColor=colors.HexColor('#1E3A8A'), alignment=1)
         style_cell = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=9, leading=11, alignment=1)
         
-        story.append(Paragraph(f"RELATÓREPORT EXECUTIVE DE PERFORMANCE COMERCIAL", style_title))
+        story.append(Paragraph(f"RELATÓRIO EXECUTIVE DE PERFORMANCE COMERCIAL", style_title))
         story.append(Paragraph(f"Competência: {mes_sel} de 2026 | Referência: {cenario_sel}", styles['Normal']))
         story.append(Spacer(1, 15))
         
@@ -322,7 +323,7 @@ elif opcao_menu == "✍️ Lançamento de Métricas":
                     st.error("Erro: Impossível registrar vendas com zero atendimentos.")
                 else:
                     conversao_dia = (vendas_qtd / atend_qtd_input * 100) if atend_qtd_input > 0 else 0.0
-                    conn = sqlite3.connect("mkn_comercial_v5.db")
+                    conn = sqlite3.connect("mkn_comercial_v6.db")
                     conn.execute("INSERT INTO lancamentos (dia, mes, empresa, vendedor, valor, vendas, atendimentos) VALUES (?, ?, ?, ?, ?, ?, ?)", (dia, mes_sel, empresa, vendedor, valor_vendido, vendas_qtd, atend_qtd_input))
                     conn.commit()
                     conn.close()
@@ -339,7 +340,7 @@ elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_use
             canal_atuacao = st.selectbox("Canal Comercial", ["Loja", "WhatsApp"])
             if st.form_submit_button("Salvar Vendedor"):
                 if nome_novo_vendedor.strip():
-                    conn = sqlite3.connect("mkn_comercial_v5.db")
+                    conn = sqlite3.connect("mkn_comercial_v6.db")
                     try:
                         conn.execute("INSERT INTO vendedores (nome, tipo_canal) VALUES (?, ?)", (nome_novo_vendedor.strip(), canal_atuacao))
                         conn.commit()
@@ -348,7 +349,7 @@ elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_use
                     except sqlite3.IntegrityError: st.error("Vendedor já existe.")
                     finally: conn.close()
         
-        conn = sqlite3.connect("mkn_comercial_v5.db")
+        conn = sqlite3.connect("mkn_comercial_v6.db")
         df_v = pd.read_sql_query("SELECT id as ID, nome as 'Nome', tipo_canal as 'Canal Comercial' FROM vendedores ORDER BY nome ASC", conn)
         conn.close()
         st.dataframe(df_v, use_container_width=True, hide_index=True)
@@ -359,7 +360,7 @@ elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_use
             new_emp = st.text_input("Nome da Nova Empresa / Filial")
             if st.form_submit_button("Salvar Empresa"):
                 if new_emp.strip():
-                    conn = sqlite3.connect("mkn_comercial_v5.db")
+                    conn = sqlite3.connect("mkn_comercial_v6.db")
                     try:
                         conn.execute("INSERT INTO empresas (nome) VALUES (?)", (new_emp.strip(),))
                         conn.commit()
@@ -377,7 +378,7 @@ elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_use
             if st.form_submit_button("Gerar Credenciais"):
                 if new_user and new_pass:
                     hash_new = hashlib.sha256(new_pass.encode()).hexdigest()
-                    conn = sqlite3.connect("mkn_comercial_v5.db")
+                    conn = sqlite3.connect("mkn_comercial_v6.db")
                     try:
                         conn.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?)", (new_user.strip(), new_nome.strip(), hash_new, new_tipo))
                         conn.commit()
