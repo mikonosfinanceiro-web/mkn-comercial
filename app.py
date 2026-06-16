@@ -12,31 +12,32 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import os
 
-# 1. CONFIGURAÇÃO DE LAYOUT E CORES DA EMPRESA (VERDE MIKONOS)
+# 1. CONFIGURAÇÃO DO LAYOUT E MARCA DA EMPRESA
 st.set_page_config(
-    page_title="MKN Comercial",
+    page_title="MKN Comercial - Sistema de Metas",
     page_icon="🏁",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Injeção de CSS para customizar botões e elementos com a cor da empresa
-st.markdown("""
+# Identidade Visual baseada na Logo (Verde Mikonos)
+COR_PRIMARIA = "#008a70"
+st.markdown(f"""
     <style>
-        .stButton>button {
-            background-color: #008a70 !important;
+        .stButton>button {{
+            background-color: {COR_PRIMARIA} !important;
             color: white !important;
             border-radius: 6px;
-        }
-        .stFormSubmitButton>button {
-            background-color: #008a70 !important;
+        }}
+        .stFormSubmitButton>button {{
+            background-color: {COR_PRIMARIA} !important;
             color: white !important;
             border-radius: 6px;
             width: 100%;
-        }
-        h2, h3 {
-            color: #008a70 !important;
-        }
+        }}
+        h1, h2, h3, .stTabs [data-baseweb="tab"] {{
+            color: {COR_PRIMARIA} !important;
+        }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -75,31 +76,34 @@ DADOS_METAS = {
 }
 
 MESES_LISTA = ["Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-CORES_PILOTOS = ["#008a70", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#14B8A6"]
+CORES_PILOTOS = [COR_PRIMARIA, "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#14B8A6"]
 
+# BANCO DE DADOS SEGURO COM BACKUP E HISTÓRICO DE AUDITORIA
 def init_db():
     conn = sqlite3.connect("mkn_comercial_v6.db")
     c = conn.cursor()
+    
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios 
-                 (username TEXT PRIMARY KEY, nome TEXT, senha TEXT, tipo TEXT)''')
+                 (username TEXT PRIMARY KEY, nome TEXT, senha TEXT, tipo TEXT, criado_por TEXT, data_cadastro TEXT)''')
+    
     c.execute('''CREATE TABLE IF NOT EXISTS empresas (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT UNIQUE)''')
     c.execute('''CREATE TABLE IF NOT EXISTS vendedores 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT UNIQUE, tipo_canal TEXT)''')
+    
     c.execute('''CREATE TABLE IF NOT EXISTS lancamentos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, dia INTEGER, mes TEXT, empresa TEXT, 
-                  vendedor TEXT, valor REAL, vendas INTEGER, atendimentos INTEGER)''')
+                  vendedor TEXT, valor REAL, vendas INTEGER, atendimentos INTEGER, criado_por TEXT, data_registro TEXT)''')
     
+    # Garantir conta padrão Admin da Carla
     c.execute("SELECT * FROM usuarios WHERE username='carla.castro'")
     if not c.fetchone():
         assinatura_nova_senha = hashlib.sha256("123mudar@".encode()).hexdigest()
-        c.execute("INSERT INTO usuarios VALUES ('carla.castro', 'Carla Castro', ?, 'Admin')", (assinatura_nova_senha,))
+        agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+        c.execute("INSERT INTO usuarios VALUES ('carla.castro', 'Carla Castro', ?, 'Admin', 'Sistema', ?)", (assinatura_nova_senha, agora))
         
     vendedores_padrao = [
-        ("Pedro", "WhatsApp"), 
-        ("Gabriel", "Loja"), 
-        ("Jailson", "Loja"),
-        ("Angelo", "WhatsApp"), 
-        ("Gustavo", "WhatsApp")
+        ("Pedro", "WhatsApp"), ("Gabriel", "Loja"), ("Jailson", "Loja"),
+        ("Angelo", "WhatsApp"), ("Gustavo", "WhatsApp")
     ]
     for v, t in vendedores_padrao:
         c.execute("INSERT OR IGNORE INTO vendedores (nome, tipo_canal) VALUES (?, ?)", (v, t))
@@ -112,27 +116,27 @@ def init_db():
 
 init_db()
 
+# CONTROLE DE SESSÃO PERMANENTE
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.user = None
     st.session_state.username = None
     st.session_state.tipo_user = None
 
-# TELA DE LOGIN
+# --- ESTRUTURA DA TELA DE LOGIN ---
 if not st.session_state.autenticado:
-    c1, c2, c3 = st.columns([1, 1.5, 1])
+    c1, c2, c3 = st.columns([1, 1.4, 1])
     with c2:
-        # Exibe a logo se ela existir no diretório do script
         if os.path.exists("Logo Mikonos 1.PNG"):
-            st.image("Logo Mikonos 1.PNG", width=180)
+            st.image("Logo Mikonos 1.PNG", width=200)
         else:
-            st.markdown("<h2 style='text-align: center;'>🏁 MKN Camisetas</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: center; color: {COR_PRIMARIA};'>🏁 MKN Camisetas</h2>", unsafe_allow_html=True)
             
         with st.form("login_form"):
-            st.subheader("Login do Sistema")
+            st.subheader("Painel de Acesso Seguro")
             user_input = st.text_input("Usuário / Login").strip()
             pass_input = st.text_input("Senha Corporativa", type="password")
-            btn_login = st.form_submit_button("Acessar Painel")
+            btn_login = st.form_submit_button("Entrar no Painel")
             
             if btn_login:
                 hash_input = hashlib.sha256(pass_input.encode()).hexdigest()
@@ -146,13 +150,12 @@ if not st.session_state.autenticado:
                     st.session_state.username = res[2]
                     st.rerun()
                 else:
-                    st.error("Credenciais incorretas ou usuário inexistente.")
+                    st.error("🔒 Credenciais incorretas ou usuário inexistente.")
                     
-        # SISTEMA DE ESQUECEU A SENHA REFORMULADO
         st.markdown("---")
-        with st.expander("Esqueceu sua senha? Clique aqui para resetar"):
-            user_reset = st.text_input("Digite o ID do Usuário para resetar:", key="reset_user").strip()
-            if st.button("Resetar para Senha Padrão"):
+        with st.expander("Esqueceu sua senha? Clique aqui para redefinir"):
+            user_reset = st.text_input("Digite o Login do usuário para resetar:", key="reset_field").strip()
+            if st.button("Aplicar Senha Padrão (123senha@)"):
                 if user_reset:
                     conn = sqlite3.connect("mkn_comercial_v6.db")
                     c = conn.cursor()
@@ -161,15 +164,13 @@ if not st.session_state.autenticado:
                         nova_senha_padrao = hashlib.sha256("123senha@".encode()).hexdigest()
                         c.execute("UPDATE usuarios SET senha=? WHERE username=?", (nova_senha_padrao, user_reset))
                         conn.commit()
-                        st.success(f"🔑 Sucesso! A senha do usuário '{user_reset}' foi redefinida para: **123senha@**")
+                        st.success(f"🔑 Sucesso! A nova credencial de '{user_reset}' é: **123senha@**")
                     else:
-                        st.error("Usuário não encontrado no banco de dados.")
+                        st.error("Usuário não cadastrado no banco de dados.")
                     conn.close()
-                else:
-                    st.warning("Por favor, digite o ID do usuário.")
     st.stop()
 
-# APÓS AUTENTICAÇÃO - SIDEBAR
+# --- SIDEBAR (BARRA LATERAL) ---
 st.sidebar.title(f"👤 {st.session_state.user}")
 st.sidebar.write(f"Perfil: **{st.session_state.tipo_user}**")
 
@@ -177,19 +178,16 @@ if st.sidebar.button("Desconectar do Sistema"):
     st.session_state.autenticado = False
     st.rerun()
 
-# ABA INTERNA DE MUDAR A PRÓPRIA SENHA
-st.sidebar.markdown("---")
+# Painel de Autoverificação de senha do colaborador
 with st.sidebar.expander("🔒 Alterar Minha Senha"):
-    senha_atual = st.text_input("Senha Atual", type="password", key="alterar_atual")
-    nova_senha = st.text_input("Nova Senha", type="password", key="alterar_nova")
+    senha_atual = st.text_input("Senha Atual", type="password", key="side_pass_now")
+    nova_senha = st.text_input("Nova Senha", type="password", key="side_pass_next")
     if st.button("Confirmar Nova Senha"):
         hash_atual = hashlib.sha256(senha_atual.encode()).hexdigest()
         conn = sqlite3.connect("mkn_comercial_v6.db")
         c = conn.cursor()
         c.execute("SELECT senha FROM usuarios WHERE username=?", (st.session_state.username,))
-        senha_banco = c.fetchone()[0]
-        
-        if hash_atual == senha_banco:
+        if hash_atual == c.fetchone()[0]:
             hash_nova = hashlib.sha256(nova_senha.encode()).hexdigest()
             c.execute("UPDATE usuarios SET senha=? WHERE username=?", (hash_nova, st.session_state.username))
             conn.commit()
@@ -208,7 +206,7 @@ if st.session_state.tipo_user == "Admin":
     menu.append("🛡️ Painel Administrativo")
 opcao_menu = st.sidebar.radio("Navegar por:", menu)
 
-# --- FUNÇÕES SUPORTE ---
+# --- CARREGAMENTO DE INFORMAÇÕES DO BANCO ---
 def carregar_listas():
     conn = sqlite3.connect("mkn_comercial_v6.db")
     vendedores = [r[0] for r in conn.execute("SELECT nome FROM vendedores ORDER BY nome ASC").fetchall()]
@@ -275,7 +273,7 @@ def calcular_metricas_comerciais(cenario, mes):
         
     return pd.DataFrame(dados_ranking), meta_mês
 
-# --- PÁGINAS DO MENU ---
+# --- NAVEGAÇÃO DOS MENUS ---
 if opcao_menu == "🏎️ Grande Prêmio (Painel Visual)":
     st.title(f"🏎️ Pista de Corrida - GP MKN ({mes_sel})")
     df_ranking, meta_mês = calcular_metricas_comerciais(cenario_sel, mes_sel)
@@ -304,9 +302,6 @@ if opcao_menu == "🏎️ Grande Prêmio (Painel Visual)":
 elif opcao_menu == "📊 Dashboard Geral por Vendedor":
     st.title(f"📊 Dashboard Consolidado de Performance ({mes_sel})")
     df_ranking, meta_mês = calcular_metricas_comerciais(cenario_sel, mes_sel)
-    total_faturamento_empresa = df_ranking["Já Atingiu"].sum()
-    total_vendas_empresa = df_ranking["Vendas Mês"].sum()
-    ticket_medio_geral = (total_faturamento_empresa / total_vendas_empresa) if total_vendas_empresa > 0 else 0.0
     
     st.subheader("Análise Detalhada por Profissional")
     for _, r in df_ranking.sort_values(by="Já Atingiu", ascending=False).iterrows():
@@ -316,71 +311,11 @@ elif opcao_menu == "📊 Dashboard Geral por Vendedor":
             col2.metric("Meta Individual", f"R$ {r['Meta Mês']:,.2f}")
             col3.metric("Atendimentos", f"{int(r['Atendimentos Mês'])}")
             col4.metric("Vendas", f"{int(r['Vendas Mês'])}")
-            
-            col5, col6, col7 = st.columns(3)
-            col5.metric("Ticket Médio", f"R$ {r['Ticket Médio']:,.2f}")
-            col6.metric("Conversão", f"{r['Conversão']:.1f}%")
-            if r['Status Meta'] == "Atingida":
-                col7.metric("Meta do Mês", "🏆 ULTRAPASSADA!", f"+{r['Porcentagem Saldo']:.1f}%")
-            else:
-                col7.metric("Meta do Mês", "Faltando Saldo", f"-{r['Porcentagem Saldo']:.1f}%", delta_color="inverse")
-
-    st.markdown("---")
-    st.subheader("📄 Espaço do Relatório Mensal Executivo")
-    
-    def gerar_pdf_executivo():
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
-        styles = getSampleStyleSheet()
-        story = []
-        style_title = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, leading=20, textColor=colors.HexColor('#008a70'), alignment=1)
-        style_cell = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=9, leading=11, alignment=1)
-        
-        story.append(Paragraph(f"RELATÓRIO EXECUTIVO DE PERFORMANCE COMERCIAL", style_title))
-        story.append(Paragraph(f"Competência: {mes_sel} de 2026 | Referência: {cenario_sel}", styles['Normal']))
-        story.append(Spacer(1, 15))
-        
-        vendedor_campeao = df_ranking.sort_values(by="Conversão", ascending=False).iloc[0]["Piloto"] if not df_ranking.empty else "Nenhum"
-        scorecard_data = [
-            [Paragraph("<b>Faturamento Total</b>", style_cell), Paragraph("<b>Meta Alvo Mês</b>", style_cell), Paragraph("<b>Líder de Conversão</b>", style_cell), Paragraph("<b>Ticket Geral</b>", style_cell)],
-            [f"R$ {total_faturamento_empresa:,.2f}", f"R$ {meta_mês['Total']:,.2f}", vendedor_campeao, f"R$ {ticket_medio_geral:,.2f}"]
-        ]
-        sc_table = Table(scorecard_data, colWidths=[130, 130, 130, 130])
-        sc_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F3F4F6')),
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB')),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-            ('TOPPADDING', (0,0), (-1,-1), 8),
-        ]))
-        story.append(sc_table)
-        story.append(Spacer(1, 20))
-        
-        pdf_table_data = [["Piloto", "Meta", "Realizado", "Progresso", "Saldo", "Ticket Médio", "Conversão"]]
-        for _, r in df_ranking.sort_values(by="Já Atingiu", ascending=False).iterrows():
-            txt_saldo = f"+{r['Porcentagem Saldo']:.1f}%" if r['Status Meta'] == "Atingida" else f"-{r['Porcentagem Saldo']:.1f}%"
-            pdf_table_data.append([r["Piloto"], f"R$ {r['Meta Mês']:,.2f}", f"R$ {r['Já Atingiu']:,.2f}", f"{r['Pct']:.1f}%", txt_saldo, f"R$ {r['Ticket Médio']:,.2f}", f"{r['Conversão']:.1f}%"])
-            
-        det_table = Table(pdf_table_data, colWidths=[110, 75, 75, 60, 75, 75, 60])
-        det_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#008a70')),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#9CA3AF')),
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F9FAFB')]),
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ]))
-        story.append(det_table)
-        doc.build(story)
-        buffer.seek(0)
-        return buffer
-
-    st.download_button("📄 Emitir e Baixar Relatório Executivo (PDF)", data=gerar_pdf_executivo(), file_name=f"Executivo_MKN_{mes_sel}_2026.pdf", mime="application/pdf")
 
 elif opcao_menu == "✍️ Lançamento de Métricas":
     st.title("✍️ Input Operacional de Resultados")
     if len(lista_vendedores) == 0:
-        st.warning("⚠️ Nenhum vendedor cadastrado no sistema. Acesse o Painel Administrativo.")
+        st.warning("⚠️ Adicione vendedores no Painel Administrativo antes de prosseguir.")
     else:
         with st.form("form_lancamento", clear_on_submit=True):
             st.subheader("Formulário de Entrada de Dados")
@@ -396,70 +331,86 @@ elif opcao_menu == "✍️ Lançamento de Métricas":
             
             if st.form_submit_button("Registrar e Atualizar Pista"):
                 if atend_qtd_input < vendas_qtd:
-                    st.error("Erro: Atendimentos não podem ser menores que as vendas.")
+                    st.error("Erro: Atendimentos menores que as vendas.")
                 elif atend_qtd_input == 0 and vendas_qtd > 0:
-                    st.error("Erro: Impossível registrar vendas com zero atendimentos.")
+                    st.error("Erro: Lançamento inconsistente.")
                 else:
-                    conversao_dia = (vendas_qtd / atend_qtd_input * 100) if atend_qtd_input > 0 else 0.0
+                    agora_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
                     conn = sqlite3.connect("mkn_comercial_v6.db")
-                    conn.execute("INSERT INTO lancamentos (dia, mes, empresa, vendedor, valor, vendas, atendimentos) VALUES (?, ?, ?, ?, ?, ?, ?)", (dia, mes_sel, empresa, vendedor, valor_vendido, vendas_qtd, atend_qtd_input))
-                    conn.commit()
-                    conn.close()
-                    st.success(f"📈 Lançamento gravado com sucesso no histórico!")
+                    try:
+                        conn.execute("""INSERT INTO lancamentos (dia, mes, empresa, vendedor, valor, vendas, atendimentos, criado_por, data_registro) 
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
+                                     (dia, mes_sel, empresa, vendedor, valor_vendido, vendas_qtd, atend_qtd_input, st.session_state.username, agora_str))
+                        conn.commit()
+                        st.success(f"📈 Métricas salvas com sucesso no histórico permanente!")
+                    except Exception as e:
+                        st.error(f"Erro ao salvar dados: {e}")
+                    finally:
+                        conn.close()
 
+# --- PAINEL ADMINISTRATIVO COM TRATAMENTO COMPLETO ---
 elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_user == "Admin":
-    st.title("🛡️ Painel Advanced de Governança")
-    t1, t2, t3 = st.tabs(["👤 Cadastro de Vendedores", "🏢 Organização de Empresas", "🔒 Contas de Operadores"])
+    st.title("🛡️ Painel Governança Executiva")
+    t1, t2, t3, t4 = st.tabs(["👤 Vendedores", "🏢 Empresas", "🔒 Contas de Operadores", "📋 Histórico Geral de Auditoria"])
     
     with t1:
-        st.subheader("Cadastrar Novo Profissional")
-        with st.form("form_cadastro_vendedor", clear_on_submit=True):
-            nome_novo_vendedor = st.text_input("Nome Completo do Vendedor")
-            canal_atuacao = st.selectbox("Canal Comercial", ["Loja", "WhatsApp"])
-            if st.form_submit_button("Salvar Vendedor"):
-                if nome_novo_vendedor.strip():
+        st.subheader("Cadastrar Vendedor")
+        with st.form("form_vendedor", clear_on_submit=True):
+            nome_v = st.text_input("Nome do Vendedor")
+            canal = st.selectbox("Canal Comercial", ["Loja", "WhatsApp"])
+            if st.form_submit_button("Salvar"):
+                if nome_v.strip():
                     conn = sqlite3.connect("mkn_comercial_v6.db")
                     try:
-                        conn.execute("INSERT INTO vendedores (nome, tipo_canal) VALUES (?, ?)", (nome_novo_vendedor.strip(), canal_atuacao))
+                        conn.execute("INSERT INTO vendedores (nome, tipo_canal) VALUES (?, ?)", (nome_v.strip(), canal))
                         conn.commit()
-                        st.success("Vendedor cadastrado!")
-                        st.rerun()
-                    except sqlite3.IntegrityError: st.error("Vendedor já existe.")
+                        st.success("Vendedor salvo permanentemente!")
+                    except sqlite3.IntegrityError: st.error("Este vendedor já existe.")
                     finally: conn.close()
-        
-        conn = sqlite3.connect("mkn_comercial_v6.db")
-        df_v = pd.read_sql_query("SELECT id as ID, nome as 'Nome', tipo_canal as 'Canal Comercial' FROM vendedores ORDER BY nome ASC", conn)
-        conn.close()
-        st.dataframe(df_v, use_container_width=True, hide_index=True)
-                        
-    with t2:
-        st.subheader("Inclusão de Empresas")
-        with st.form("form_cadastro_empresa", clear_on_submit=True):
-            new_emp = st.text_input("Nome da Nova Empresa / Filial")
-            if st.form_submit_button("Salvar Empresa"):
-                if new_emp.strip():
-                    conn = sqlite3.connect("mkn_comercial_v6.db")
-                    try:
-                        conn.execute("INSERT INTO empresas (nome) VALUES (?)", (new_emp.strip(),))
-                        conn.commit()
-                        st.success("Empresa adicionada!")
-                    except sqlite3.IntegrityError: st.error("Empresa já existe.")
-                    finally: conn.close()
-                        
+                    st.rerun()
+
     with t3:
-        st.subheader("Criar novo Login de Alimentação")
+        st.subheader("Criar conta para Colaborador / Operador")
         with st.form("add_user_form", clear_on_submit=True):
-            new_user = st.text_input("ID de Usuário / Login")
+            new_user = st.text_input("ID de Usuário / Login (Ex: joao.mkn)").strip()
             new_nome = st.text_input("Nome Completo")
             new_pass = st.text_input("Senha Inicial", type="password")
-            new_tipo = st.selectbox("Perfil", ["Operador", "Admin"])
-            if st.form_submit_button("Gerar Credenciais"):
+            new_tipo = st.selectbox("Perfil de Acesso", ["Operador", "Admin"])
+            if st.form_submit_button("Gerar e Salvar Credenciais"):
                 if new_user and new_pass:
                     hash_new = hashlib.sha256(new_pass.encode()).hexdigest()
+                    agora_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
                     conn = sqlite3.connect("mkn_comercial_v6.db")
                     try:
-                        conn.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?)", (new_user.strip(), new_nome.strip(), hash_new, new_tipo))
+                        conn.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?, ?, ?)", 
+                                     (new_user, new_nome.strip(), hash_new, new_tipo, st.session_state.username, agora_str))
                         conn.commit()
-                        st.success("Credenciais criadas e salvas com sucesso no banco!")
-                    except sqlite3.IntegrityError: st.error("Usuário indisponível.")
-                    finally: conn.close()
+                        st.success(f"✔️ Operador '{new_user}' salvo com sucesso!")
+                    except sqlite3.IntegrityError: 
+                        st.error("Este login já está em uso por outra pessoa.")
+                    finally: 
+                        conn.close()
+                    st.rerun()
+                    
+    with t4:
+        st.subheader("📋 Auditoria de Modificações e Registros")
+        conn = sqlite3.connect("mkn_comercial_v6.db")
+        
+        st.markdown("#### 1. Histórico de Lançamento de Métricas (Vendas)")
+        df_audit_lancamentos = pd.read_sql_query("""
+            SELECT dia as 'Dia', mes as 'Mês', empresa as 'Empresa', vendedor as 'Vendedor', 
+                   valor as 'Faturamento (R$)', vendas as 'Vendas', atendimentos as 'Atend.', 
+                   criado_por as 'Registrado Por (Login)', data_registro as 'Data/Hora Reg.' 
+            FROM lancamentos ORDER BY id DESC
+        """, conn)
+        st.dataframe(df_audit_lancamentos, use_container_width=True, hide_index=True)
+        
+        st.markdown("---")
+        st.markdown("#### 2. Quem Cadastrou quem (Contas e Logins Ativos)")
+        df_audit_usuarios = pd.read_sql_query("""
+            SELECT username as 'Login', nome as 'Nome Completo', tipo as 'Perfil', 
+                   criado_por as 'Criado Por (Admin)', data_cadastro as 'Data/Hora Criação' 
+            FROM usuarios ORDER BY data_cadastro DESC
+        """, conn)
+        st.dataframe(df_audit_usuarios, use_container_width=True, hide_index=True)
+        conn.close()
