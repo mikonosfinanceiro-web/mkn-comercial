@@ -78,22 +78,38 @@ DADOS_METAS = {
 MESES_LISTA = ["Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 CORES_PILOTOS = [COR_PRIMARIA, "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#14B8A6"]
 
-# BANCO DE DADOS SEGURO COM BACKUP E HISTÓRICO DE AUDITORIA
+# BANCO DE DADOS INTELIGENTE COM ATUALIZAÇÃO SUCESSIVA DE COLUNAS (EVITA ERROS DE TABELA)
 def init_db():
     conn = sqlite3.connect("mkn_comercial_v6.db")
     c = conn.cursor()
     
+    # Criação base das tabelas se não existirem
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios 
-                 (username TEXT PRIMARY KEY, nome TEXT, senha TEXT, tipo TEXT, criado_por TEXT, data_cadastro TEXT)''')
-    
+                 (username TEXT PRIMARY KEY, nome TEXT, senha TEXT, tipo TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS empresas (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT UNIQUE)''')
     c.execute('''CREATE TABLE IF NOT EXISTS vendedores 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT UNIQUE, tipo_canal TEXT)''')
-    
     c.execute('''CREATE TABLE IF NOT EXISTS lancamentos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, dia INTEGER, mes TEXT, empresa TEXT, 
-                  vendedor TEXT, valor REAL, vendas INTEGER, atendimentos INTEGER, criado_por TEXT, data_registro TEXT)''')
+                  vendedor TEXT, valor REAL, vendas INTEGER, atendimentos INTEGER)''')
     
+    # 🔎 SCRIPT DE MIGRAÇÃO: Verifica e adiciona colunas que estavam faltando sem quebrar nada
+    # Para a tabela de usuários
+    c.execute("PRAGMA table_info(usuarios)")
+    colunas_usuarios = [col[1] for col in c.fetchall()]
+    if 'criado_por' not in colunas_usuarios:
+        c.execute("ALTER TABLE usuarios ADD COLUMN criado_por TEXT DEFAULT 'Sistema'")
+    if 'data_cadastro' not in colunas_usuarios:
+        c.execute("ALTER TABLE usuarios ADD COLUMN data_cadastro TEXT DEFAULT '-'")
+        
+    # Para a tabela de lançamentos
+    c.execute("PRAGMA table_info(lancamentos)")
+    colunas_lancamentos = [col[1] for col in c.fetchall()]
+    if 'criado_por' not in colunas_lancamentos:
+        c.execute("ALTER TABLE lancamentos ADD COLUMN criado_por TEXT DEFAULT 'Desconhecido'")
+    if 'data_registro' not in colunas_lancamentos:
+        c.execute("ALTER TABLE lancamentos ADD COLUMN data_registro TEXT DEFAULT '-'")
+
     # Garantir conta padrão Admin da Carla
     c.execute("SELECT * FROM usuarios WHERE username='carla.castro'")
     if not c.fetchone():
@@ -133,10 +149,10 @@ if not st.session_state.autenticado:
             st.markdown(f"<h2 style='text-align: center; color: {COR_PRIMARIA};'>🏁 MKN Camisetas</h2>", unsafe_allow_html=True)
             
         with st.form("login_form"):
-            st.subheader("Painel de Acesso Seguro")
+            st.subheader("Login do Sistema")
             user_input = st.text_input("Usuário / Login").strip()
             pass_input = st.text_input("Senha Corporativa", type="password")
-            btn_login = st.form_submit_button("Entrar no Painel")
+            btn_login = st.form_submit_button("Acessar Painel")
             
             if btn_login:
                 hash_input = hashlib.sha256(pass_input.encode()).hexdigest()
@@ -155,7 +171,7 @@ if not st.session_state.autenticado:
         st.markdown("---")
         with st.expander("Esqueceu sua senha? Clique aqui para redefinir"):
             user_reset = st.text_input("Digite o Login do usuário para resetar:", key="reset_field").strip()
-            if st.button("Aplicar Senha Padrão (123senha@)"):
+            if st.button("Aplicar Senha Padrão"):
                 if user_reset:
                     conn = sqlite3.connect("mkn_comercial_v6.db")
                     c = conn.cursor()
@@ -178,7 +194,6 @@ if st.sidebar.button("Desconectar do Sistema"):
     st.session_state.autenticado = False
     st.rerun()
 
-# Painel de Autoverificação de senha do colaborador
 with st.sidebar.expander("🔒 Alterar Minha Senha"):
     senha_atual = st.text_input("Senha Atual", type="password", key="side_pass_now")
     nova_senha = st.text_input("Nova Senha", type="password", key="side_pass_next")
@@ -206,7 +221,6 @@ if st.session_state.tipo_user == "Admin":
     menu.append("🛡️ Painel Administrativo")
 opcao_menu = st.sidebar.radio("Navegar por:", menu)
 
-# --- CARREGAMENTO DE INFORMAÇÕES DO BANCO ---
 def carregar_listas():
     conn = sqlite3.connect("mkn_comercial_v6.db")
     vendedores = [r[0] for r in conn.execute("SELECT nome FROM vendedores ORDER BY nome ASC").fetchall()]
@@ -348,7 +362,7 @@ elif opcao_menu == "✍️ Lançamento de Métricas":
                     finally:
                         conn.close()
 
-# --- PAINEL ADMINISTRATIVO COM TRATAMENTO COMPLETO ---
+# --- PAINEL ADMINISTRATIVO ATUALIZADO SEM ERROS ---
 elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_user == "Admin":
     st.title("🛡️ Painel Governança Executiva")
     t1, t2, t3, t4 = st.tabs(["👤 Vendedores", "🏢 Empresas", "🔒 Contas de Operadores", "📋 Histórico Geral de Auditoria"])
