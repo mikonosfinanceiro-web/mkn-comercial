@@ -10,8 +10,37 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+import os
 
-# DICIONÁRIO DE METAS ATUALIZADO COM OS NOVOS CENÁRIOS (+30%, +40% E +50%)
+# 1. CONFIGURAÇÃO DE LAYOUT E CORES DA EMPRESA (VERDE MIKONOS)
+st.set_page_config(
+    page_title="MKN Comercial",
+    page_icon="🏁",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Injeção de CSS para customizar botões e elementos com a cor da empresa
+st.markdown("""
+    <style>
+        .stButton>button {
+            background-color: #008a70 !important;
+            color: white !important;
+            border-radius: 6px;
+        }
+        .stFormSubmitButton>button {
+            background-color: #008a70 !important;
+            color: white !important;
+            border-radius: 6px;
+            width: 100%;
+        }
+        h2, h3 {
+            color: #008a70 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# DICIONÁRIO DE METAS ATUALIZADO
 DADOS_METAS = {
     "Cenário 1 (+30%)": {
         "Anual": 28649400.00,
@@ -46,10 +75,9 @@ DADOS_METAS = {
 }
 
 MESES_LISTA = ["Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-CORES_PILOTOS = ["#FF4B4B", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#14B8A6"]
+CORES_PILOTOS = ["#008a70", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#14B8A6"]
 
 def init_db():
-    # Atualizado para v6 para carregar a nova árvore estrutural limpa com os cenários corretos
     conn = sqlite3.connect("mkn_comercial_v6.db")
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios 
@@ -87,40 +115,88 @@ init_db()
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.user = None
+    st.session_state.username = None
     st.session_state.tipo_user = None
 
+# TELA DE LOGIN
 if not st.session_state.autenticado:
-    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🏁 MKN Camisetas - Restrito</h2>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 1.8, 1])
+    c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
+        # Exibe a logo se ela existir no diretório do script
+        if os.path.exists("Logo Mikonos 1.PNG"):
+            st.image("Logo Mikonos 1.PNG", width=180)
+        else:
+            st.markdown("<h2 style='text-align: center;'>🏁 MKN Camisetas</h2>", unsafe_allow_html=True)
+            
         with st.form("login_form"):
-            user_input = st.text_input("Usuário / Login", value="carla.castro").strip()
+            st.subheader("Login do Sistema")
+            user_input = st.text_input("Usuário / Login").strip()
             pass_input = st.text_input("Senha Corporativa", type="password")
             btn_login = st.form_submit_button("Acessar Painel")
             
             if btn_login:
                 hash_input = hashlib.sha256(pass_input.encode()).hexdigest()
                 conn = sqlite3.connect("mkn_comercial_v6.db")
-                res = conn.execute("SELECT nome, tipo FROM usuarios WHERE username=? AND senha=?", (user_input, hash_input)).fetchone()
+                res = conn.execute("SELECT nome, tipo, username FROM usuarios WHERE username=? AND senha=?", (user_input, hash_input)).fetchone()
                 conn.close()
                 if res:
                     st.session_state.autenticado = True
                     st.session_state.user = res[0]
                     st.session_state.tipo_user = res[1]
+                    st.session_state.username = res[2]
                     st.rerun()
                 else:
-                    st.error("Credenciais incorretas. Tente novamente.")
+                    st.error("Credenciais incorretas ou usuário inexistente.")
                     
-        if st.checkbox("Esqueceu a senha corporativa mestre? Click aqui"):
-            st.info("🔑 A senha padrão para o usuário carla.castro é: **123mudar@**")
-            
+        # SISTEMA DE ESQUECEU A SENHA REFORMULADO
+        st.markdown("---")
+        with st.expander("Esqueceu sua senha? Clique aqui para resetar"):
+            user_reset = st.text_input("Digite o ID do Usuário para resetar:", key="reset_user").strip()
+            if st.button("Resetar para Senha Padrão"):
+                if user_reset:
+                    conn = sqlite3.connect("mkn_comercial_v6.db")
+                    c = conn.cursor()
+                    c.execute("SELECT username FROM usuarios WHERE username=?", (user_reset,))
+                    if c.fetchone():
+                        nova_senha_padrao = hashlib.sha256("123senha@".encode()).hexdigest()
+                        c.execute("UPDATE usuarios SET senha=? WHERE username=?", (nova_senha_padrao, user_reset))
+                        conn.commit()
+                        st.success(f"🔑 Sucesso! A senha do usuário '{user_reset}' foi redefinida para: **123senha@**")
+                    else:
+                        st.error("Usuário não encontrado no banco de dados.")
+                    conn.close()
+                else:
+                    st.warning("Por favor, digite o ID do usuário.")
     st.stop()
 
+# APÓS AUTENTICAÇÃO - SIDEBAR
 st.sidebar.title(f"👤 {st.session_state.user}")
 st.sidebar.write(f"Perfil: **{st.session_state.tipo_user}**")
+
 if st.sidebar.button("Desconectar do Sistema"):
     st.session_state.autenticado = False
     st.rerun()
+
+# ABA INTERNA DE MUDAR A PRÓPRIA SENHA
+st.sidebar.markdown("---")
+with st.sidebar.expander("🔒 Alterar Minha Senha"):
+    senha_atual = st.text_input("Senha Atual", type="password", key="alterar_atual")
+    nova_senha = st.text_input("Nova Senha", type="password", key="alterar_nova")
+    if st.button("Confirmar Nova Senha"):
+        hash_atual = hashlib.sha256(senha_atual.encode()).hexdigest()
+        conn = sqlite3.connect("mkn_comercial_v6.db")
+        c = conn.cursor()
+        c.execute("SELECT senha FROM usuarios WHERE username=?", (st.session_state.username,))
+        senha_banco = c.fetchone()[0]
+        
+        if hash_atual == senha_banco:
+            hash_nova = hashlib.sha256(nova_senha.encode()).hexdigest()
+            c.execute("UPDATE usuarios SET senha=? WHERE username=?", (hash_nova, st.session_state.username))
+            conn.commit()
+            st.success("Senha alterada com sucesso!")
+        else:
+            st.error("Senha atual incorreta.")
+        conn.close()
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 Filtros de Competência")
@@ -132,6 +208,7 @@ if st.session_state.tipo_user == "Admin":
     menu.append("🛡️ Painel Administrativo")
 opcao_menu = st.sidebar.radio("Navegar por:", menu)
 
+# --- FUNÇÕES SUPORTE ---
 def carregar_listas():
     conn = sqlite3.connect("mkn_comercial_v6.db")
     vendedores = [r[0] for r in conn.execute("SELECT nome FROM vendedores ORDER BY nome ASC").fetchall()]
@@ -198,6 +275,7 @@ def calcular_metricas_comerciais(cenario, mes):
         
     return pd.DataFrame(dados_ranking), meta_mês
 
+# --- PÁGINAS DO MENU ---
 if opcao_menu == "🏎️ Grande Prêmio (Painel Visual)":
     st.title(f"🏎️ Pista de Corrida - GP MKN ({mes_sel})")
     df_ranking, meta_mês = calcular_metricas_comerciais(cenario_sel, mes_sel)
@@ -255,10 +333,10 @@ elif opcao_menu == "📊 Dashboard Geral por Vendedor":
         doc = SimpleDocTemplate(buffer, pagesize=letter)
         styles = getSampleStyleSheet()
         story = []
-        style_title = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, leading=20, textColor=colors.HexColor('#1E3A8A'), alignment=1)
+        style_title = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, leading=20, textColor=colors.HexColor('#008a70'), alignment=1)
         style_cell = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=9, leading=11, alignment=1)
         
-        story.append(Paragraph(f"RELATÓRIO EXECUTIVE DE PERFORMANCE COMERCIAL", style_title))
+        story.append(Paragraph(f"RELATÓRIO EXECUTIVO DE PERFORMANCE COMERCIAL", style_title))
         story.append(Paragraph(f"Competência: {mes_sel} de 2026 | Referência: {cenario_sel}", styles['Normal']))
         story.append(Spacer(1, 15))
         
@@ -285,7 +363,7 @@ elif opcao_menu == "📊 Dashboard Geral por Vendedor":
             
         det_table = Table(pdf_table_data, colWidths=[110, 75, 75, 60, 75, 75, 60])
         det_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1E3A8A')),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#008a70')),
             ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#9CA3AF')),
             ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F9FAFB')]),
@@ -327,7 +405,7 @@ elif opcao_menu == "✍️ Lançamento de Métricas":
                     conn.execute("INSERT INTO lancamentos (dia, mes, empresa, vendedor, valor, vendas, atendimentos) VALUES (?, ?, ?, ?, ?, ?, ?)", (dia, mes_sel, empresa, vendedor, valor_vendido, vendas_qtd, atend_qtd_input))
                     conn.commit()
                     conn.close()
-                    st.success(f"📈 Lançamento gravado! Conversão Diária do Vendedor: {conversao_dia:.1f}%")
+                    st.success(f"📈 Lançamento gravado com sucesso no histórico!")
 
 elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_user == "Admin":
     st.title("🛡️ Painel Advanced de Governança")
@@ -382,6 +460,6 @@ elif opcao_menu == "🛡️ Painel Administrativo" and st.session_state.tipo_use
                     try:
                         conn.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?)", (new_user.strip(), new_nome.strip(), hash_new, new_tipo))
                         conn.commit()
-                        st.success("Credenciais criadas com sucesso!")
+                        st.success("Credenciais criadas e salvas com sucesso no banco!")
                     except sqlite3.IntegrityError: st.error("Usuário indisponível.")
                     finally: conn.close()
